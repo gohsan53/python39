@@ -1,68 +1,183 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.widgets as wg
 import pygame
 from pygame.locals import *
 import serial
-import sys
 import time
+import sys
+
+DEVICE_COM = "COM5"
+
+intensData = [0, 0, 0]
+offset = 50
+redOriginalData = [1000, 240, 210]
+redRateMin = [redOriginalData[0], redOriginalData[1]-offset, redOriginalData[2]-offset]
+redRateMax = [redOriginalData[0], redOriginalData[1]+offset, redOriginalData[2]+offset]
+
+def getColor(rd: str, gr: str, bl: str) -> str:
+    color = 'BLACK'
+    maxColor = 0
+    maxColorIntens = 0
+    intensData[0] = int(rd)
+    intensData[1] = int(gr)
+    intensData[2] = int(bl)
+    print('intensData: ', intensData)
+
+    for i, intens in enumerate(intensData):
+        if intens > maxColorIntens:
+            maxColorIntens = intens
+            maxColor = i
+    normalizedData = list(map(lambda x: int(x * 1000 / maxColorIntens), intensData))
+    # normalizedData = [intensData[0], intensData[1], intensData[2]]*1000/maxColorIntens
+    print('maxColor: ', maxColor)
+    print('maxColorIntens: ', maxColorIntens)
+    print('normalizedData: ', normalizedData)
+
+    if maxColor == 0:
+        # 赤かどうか
+        if normalizedData[1] > redRateMin[1] and normalizedData[1] < redRateMax[1] and\
+            normalizedData[2] > redRateMin[2] and normalizedData[2] < redRateMax[2]:
+            color = 'RED'
+
+    return color
+
 
 def main():
-    # ser = serial.Serial("COM7")  # COMポート(Arduino接続)
-    xdegs = [0]*101              # 温度格納
-    ydegs = [0]*101              # 温度格納
+    try:
+        ser = serial.Serial(DEVICE_COM, 9600, timeout=1)
+        print(ser)
+    except Exception as e:
+        print('[Error]', e)
+        exit()
+
+    serialStatus = False
+    color = ''
+    redValue, greenValue, blueValue = str(0), str(0), str(0)
+
+    redValues = [0]*101
+    greenValues = [0]*101
+    blueValues = [0]*101
     t = np.arange(0,101,1)
 
-    # グラフ表示設定
-    line1, = plt.plot(t, xdegs, 'r-',label="X-axis[deg]") # Y軸更新
-    line2, = plt.plot(t, ydegs, 'b-',label="Y-axis[deg]") # Y軸更新
-    plt.title("Real-time inclination angle")
+    #  グラフ表示設定
+    line1, = plt.plot(t, redValues, 'r-', label="RED")
+    line2, = plt.plot(t, greenValues, 'g-', label="GREEN")
+    line3, = plt.plot(t, blueValues, 'b-', label="BLUE")
+    plt.title("Realtime RGB Sensing")
     plt.xlabel("Time [s]")
-    plt.ylabel("Inclination angle [deg]")
-    plt.legend()
-    plt.grid()
-    plt.xlim([0,100])
-    plt.ylim([-90,90])
+    plt.ylabel("Intensitiy []")
+    plt.legend(); plt.grid()
+    plt.xlim([0,100]); plt.ylim([0,1023])
     plt.ion()
+    # axColor = 'lightgoldenrodyellow'
+    # axSerial = plt.axes([0.2, 0.1, 0.15, 0.05])
+    # btnSerial = wg.Button(axSerial, 'START', color=axColor, hoverColor='#CCFFCC') 
+
     # Pygameの設定
-    pygame.init()                                  # 初期化
-    screen = pygame.display.set_mode((200, 200))   # 画面作成(100×100)
-    pygame.display.set_caption("傾斜角度")         # タイトルバー
-    font = pygame.font.Font(None, 30)              # 文字の設定
+    pygame.init()
+    screen = pygame.display.set_mode((300, 200))
+    pygame.display.set_caption("RGBカラーセンサ")
+    font = pygame.font.Font(None, 30)
+
+    # redData = 0
+    # greenData = 0
+    # blueData = 0
+    # redIncrementStatus = True
+    # greenIncrementStatus = True
+    # blueIncrementStatus = False
 
     while True:
-
-        # time.sleep(1)
-        # data = ser.readline().rstrip()  # \nまで読み込む(\nは削除)
-        data = "1,10"
-        (xdeg, ydeg) = ('1.1', '10.2')
-
-        # 角度データのリスト更新
-        xdegs.pop(100)
-        xdegs.insert(0,float(xdeg))
-        ydegs.pop(100)
-        ydegs.insert(0,float(ydeg))
-
-
-        line1.set_ydata(xdegs)
-        line2.set_ydata(ydegs)
-        plt.draw()
-        plt.pause(0.05)
-
-        # Pygameの処理
-        screen.fill((0,0,0))            # 画面のクリア
-        text = font.render("(X, Y) = ("+xdeg+", "+ydeg+")", False, (255,255,255))
-        screen.blit(text, (10, 10))     # レンダ，表示位置
-        pygame.display.flip()           # 画面を更新して、変更を反映
-
-        # Pygameのイベント処理
+        # pygameの処理
         for event in pygame.event.get():
-            # 終了ボタンが押されたら終了処理
+            # 終了ボタンが押されたら終了
             if event.type == QUIT:
                 pygame.quit()
-                # ser.close()
+                ser.close()
                 plt.close()
                 sys.exit()
+        mBtn1 = pygame.mouse.get_pressed()[0]
+
+        screen.fill((0,0,0))
+        text1 = font.render("(R, G, B) = ("+redValue+", "+greenValue+", "+blueValue+")", False, (255,255,255))
+        text2 = font.render("Color is " + color, False, (255,255,255))
+        screen.blit(text1, (10, 10))
+        screen.blit(text2, (10, 100))
+        pygame.display.flip()
+
+        if serialStatus == False:
+            if mBtn1:
+                serialStatus = True
+                ser.write(b'python')
+                print('R,  G,  B')
+                
+        serialRx = str(ser.readline().rstrip())
+        if 'RGB' in serialRx:
+            startNum = serialRx.find('RGB') + 5
+            data = serialRx[startNum:-1]
+
+            # data = rgbData.split(',')
+            # data = "{},{},{}".format(redData, greenData, blueData)
+
+            # if (redIncrementStatus == True and redData < 1023):
+            #     redData += 10
+            #     if redData > 1023:
+            #         redData = 1023
+            # elif redData == 1023:
+            #     redIncrementStatus = False
+            #     redData -= 10
+            # else:
+            #     redData -= 10
+            #     if redData < 0:
+            #         redData = 0
+            #     if redData == 0:
+            #         redIncrementStatus = True
+
+            # if (greenIncrementStatus == True and greenData < 1023):
+            #     greenData += 10
+            #     if greenData > 1023:
+            #         greenData = 1023
+            # elif greenData == 1023:
+            #     greenIncrementStatus = False
+            #     greenData -= 10
+            # else:
+            #     greenData -= 10
+            #     if greenData < 0:
+            #         greenData = 0
+            #     if greenData == 0:
+            #         greenIncrementStatus = True
+
+            # if (blueIncrementStatus == True and blueData < 1023):
+            #     blueData += 10
+            #     if blueData > 1023:
+            #         blueData = 1023
+            # elif blueData == 1023:
+            #     blueIncrementStatus = False
+            #     blueData -= 10
+            # else:
+            #     blueData -= 10
+            #     if blueData < 0:
+            #         blueData = 0
+            #     if blueData == 0:
+            #         blueIncrementStatus = True
+            
+            (redValue, greenValue, blueValue) = data.split(",")
+            print(redValue + ', ' + greenValue + ', ', blueValue)
+            color = getColor(redValue, greenValue, blueValue)
+            print('color: ', color)
+
+            redValues.pop(100)
+            redValues.insert(0, int(redValue))
+            greenValues.pop(100)
+            greenValues.insert(0, int(greenValue))
+            blueValues.pop(100)
+            blueValues.insert(0, int(blueValue))
+
+            line1.set_ydata(redValues)
+            line2.set_ydata(greenValues)
+            line3.set_ydata(blueValues)
+            plt.draw()
+            plt.pause(0.05)
 
 
 if __name__ == '__main__':
