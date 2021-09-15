@@ -10,10 +10,28 @@ import sys
 DEVICE_COM = "COM5"
 
 intensData = [0, 0, 0]
-offset = 50
+compensateValue = 0.5
+########## R is max ##########
 redOriginalData = [1000, 240, 210]
-redRateMin = [redOriginalData[0], redOriginalData[1]-offset, redOriginalData[2]-offset]
-redRateMax = [redOriginalData[0], redOriginalData[1]+offset, redOriginalData[2]+offset]
+redRateMin = [redOriginalData[0], redOriginalData[1]*(1-compensateValue), redOriginalData[2]*(1-compensateValue)]
+redRateMax = [redOriginalData[0], redOriginalData[1]*(1+compensateValue), redOriginalData[2]*(1+compensateValue)]
+magentaOriginalData = [1000, 228, 301]
+magentaRateMin = [magentaOriginalData[0], magentaOriginalData[1]*(1-compensateValue), magentaOriginalData[2]*(1-compensateValue)]
+magentaRateMax = [magentaOriginalData[0], magentaOriginalData[1]*(1+compensateValue), magentaOriginalData[2]*(1+compensateValue)]
+yellowOriginalData = [1000, 980, 370]
+yellowRateMin = [yellowOriginalData[0], yellowOriginalData[1]*(1-compensateValue), yellowOriginalData[2]*(1-compensateValue)]
+yellowRateMax = [yellowOriginalData[0], yellowOriginalData[1]*(1+compensateValue), yellowOriginalData[2]*(1+compensateValue)]
+########## G is max ##########
+greenOriginalData = [547, 1000, 679]
+greenRateMin = [greenOriginalData[0]*(1-compensateValue), greenOriginalData[1], greenOriginalData[2]*(1-compensateValue)]
+greenRateMax = [greenOriginalData[0]*(1+compensateValue), greenOriginalData[1], greenOriginalData[2]*(1+compensateValue)]
+########## B is max ##########
+cyanOriginalData = [330, 687, 1000]
+cyanRateMin = [cyanOriginalData[0]*(1-compensateValue), cyanOriginalData[1]*(1-compensateValue), cyanOriginalData[2]]
+cyanRateMax = [cyanOriginalData[0]*(1+compensateValue), cyanOriginalData[1]*(1+compensateValue), cyanOriginalData[2]]
+blueOriginalData = [890, 677, 1000]
+blueRateMin = [blueOriginalData[0]*(1-compensateValue), blueOriginalData[1]*(1-compensateValue), blueOriginalData[2]]
+blueRateMax = [blueOriginalData[0]*(1+compensateValue), blueOriginalData[1]*(1+compensateValue), blueOriginalData[2]]
 
 def getColor(rd: str, gr: str, bl: str) -> str:
     color = 'BLACK'
@@ -35,10 +53,34 @@ def getColor(rd: str, gr: str, bl: str) -> str:
     print('normalizedData: ', normalizedData)
 
     if maxColor == 0:
+        # マゼンタかどうか
+        if normalizedData[1] > magentaRateMin[1] and normalizedData[1] < magentaRateMax[1] and\
+            normalizedData[2] > magentaRateMin[2] and normalizedData[2] < magentaRateMax[2] and\
+            normalizedData[1] < normalizedData[2]:
+            color = 'MAGENTA'
         # 赤かどうか
-        if normalizedData[1] > redRateMin[1] and normalizedData[1] < redRateMax[1] and\
+        elif normalizedData[1] > redRateMin[1] and normalizedData[1] < redRateMax[1] and\
             normalizedData[2] > redRateMin[2] and normalizedData[2] < redRateMax[2]:
             color = 'RED'
+        # 黄かどうか
+        elif normalizedData[1] > yellowRateMin[1] and normalizedData[1] < yellowRateMax[1] and\
+            normalizedData[2] > yellowRateMin[2] and normalizedData[2] < yellowRateMax[2]:
+            color = 'YELLOW'
+    elif maxColor == 1:
+        # 緑かどうか
+        if normalizedData[0] > greenRateMin[0] and normalizedData[0] < greenRateMax[0] and\
+            normalizedData[2] > greenRateMin[2] and normalizedData[2] < greenRateMax[2]:
+            color = 'GREEN'
+    else:
+        # シアンかどうか
+        if normalizedData[0] > cyanRateMin[0] and normalizedData[0] < cyanRateMax[0] and\
+            normalizedData[1] > cyanRateMin[1] and normalizedData[1] < cyanRateMax[1] and\
+            normalizedData[0] < normalizedData[1]:
+            color = 'CYAN'
+        # 青かどうか
+        elif normalizedData[0] > blueRateMin[0] and normalizedData[0] < blueRateMax[0] and\
+            normalizedData[1] > blueRateMin[1] and normalizedData[1] < blueRateMax[1]:
+            color = 'BLUE'
 
     return color
 
