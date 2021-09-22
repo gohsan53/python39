@@ -47,7 +47,7 @@ def getColor(rd: str, gr: str, bl: str) -> str:
             maxColorIntens = intens
             maxColor = i
     normalizedData = list(map(lambda x: int(x * 1000 / maxColorIntens), intensData))
-    # normalizedData = [intensData[0], intensData[1], intensData[2]]*1000/maxColorIntens
+    normalizedData = [intensData[0], intensData[1], intensData[2]]*1000/maxColorIntens
     print('maxColor: ', maxColor)
     print('maxColorIntens: ', maxColorIntens)
     print('normalizedData: ', normalizedData)
@@ -152,8 +152,14 @@ def main():
                 serialStatus = True
                 ser.write(b'python')
                 print('R,  G,  B')
+
+        try:
+            serialRx = str(ser.readline().rstrip())
+
+        except Exception as e:
+            print('[Error]', e)
+            exit()
                 
-        serialRx = str(ser.readline().rstrip())
         if 'RGB' in serialRx:
             startNum = serialRx.find('RGB') + 5
             data = serialRx[startNum:-1]
